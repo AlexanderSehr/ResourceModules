@@ -168,13 +168,15 @@ function Set-ParametersSection {
         $hasDefault = $categoryParameters.defaultValue.count -gt 0
         $hasAllowed = $categoryParameters.allowedValues.count -gt 0
 
-        # 2. Create header including optional columns
+        # 2. Create header including optional columns & initiate the parameter list
         $newSectionContent += @(
             ('**{0} parameters**' -f $category),
             '',
             ('| Parameter Name | Type | {0}{1}Description |' -f ($hasDefault ? 'Default Value | ' : ''), ($hasAllowed ? 'Allowed Values | ' : '')),
             ('| :-- | :-- | {0}{1}:-- |' -f ($hasDefault ? ':-- | ' : ''), ($hasAllowed ? ':-- | ' : ''))
         )
+
+        $parameterListArray = [System.Collections.ArrayList]@()
 
         # 3. Add individual parameters
         foreach ($parameter in $categoryParameters) {
@@ -211,7 +213,19 @@ function Set-ParametersSection {
             $description = $description.substring("$category. ".Length)
             $defaultValueColumnValue = ($hasDefault ? (-not [String]::IsNullOrEmpty($defaultValue) ? "``$defaultValue`` | " : ' | ') : '')
             $allowedValueColumnValue = ($hasAllowed ? (-not [String]::IsNullOrEmpty($allowedValue) ? "``$allowedValue`` | " : ' | ') : '')
+            # TODO: Move to default & allowed to parameter list
             $newSectionContent += ('| `{0}` | {1} | {2}{3}{4} |' -f $parameter.name, $type, $defaultValueColumnValue, $allowedValueColumnValue, $description)
+
+            $parameterListArray += @(
+                ('### Parameter: `{0}`' -f $parameter.name),
+                '',
+                $description,
+                ('- Required: {0}' -f ((-not $defaultValue) ? 'Yes' : 'No')),
+                ('- Type: {0}' -f $type),
+                ((-not [String]::IsNullOrEmpty($defaultValue)) ? ('- Default: {0}' -f $defaultValue) : $null),
+                ((-not [String]::IsNullOrEmpty($allowedValue)) ? ('- Allowed: {0}' -f $allowedValue) : $null),
+                ''
+            ) | Where-Object { $null -ne $_ }
         }
         $newSectionContent += ''
     }
@@ -222,6 +236,7 @@ function Set-ParametersSection {
     }
 
     # Build sub-section 'ParameterUsage'
+    # TODO: Replace with parameter list
     if (Test-Path (Join-Path $PSScriptRoot 'moduleReadMeSource')) {
         if ($resourceUsageSourceFiles = Get-ChildItem (Join-Path $PSScriptRoot 'moduleReadMeSource') -Recurse -Filter 'resourceUsage-*') {
             foreach ($sourceFile in $resourceUsageSourceFiles.FullName) {
